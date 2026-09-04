@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+:root { --ink:#0b1c30; --muted:#64748b; --line:#e2e8f0; --canvas:#f8f9ff; --blue:#2563eb; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--canvas); color:var(--ink); font-family: Arial, Helvetica, sans-serif; font-size:13px; }
+button, input, textarea { font: inherit; }
+button { cursor:pointer; }
+::selection { background:#d3e4fe; }
+.mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+.focus-ring:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.hairline { border-color: var(--line); }
