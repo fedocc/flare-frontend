@@ -5,7 +5,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { useWorkspace } from "@/components/workspace-context";
 import { dataProvider, type CreateItemInput } from "@/lib/data";
+import { readLocal, writeLocal } from "@/lib/storage/preferences";
 import { useVoiceCapture } from "./use-voice-capture";
+
+const ORB_POSITION_KEY = "flare-orb-position-v1";
+const ORB_EDGE_MARGIN = 30;
+type OrbPosition = { x: number; y: number };
+type PointerStart = {
+  pointerId: number;
+  pointerX: number;
+  pointerY: number;
+  orbX: number;
+  orbY: number;
+  moved: boolean;
+};
 
 function detectUrl(text: string) {
   try {
@@ -22,6 +35,19 @@ function elapsed(seconds: number) {
     .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
 }
 
+function clampOrbPosition(position: OrbPosition): OrbPosition {
+  return {
+    x: Math.min(
+      Math.max(ORB_EDGE_MARGIN, position.x),
+      window.innerWidth - ORB_EDGE_MARGIN,
+    ),
+    y: Math.min(
+      Math.max(ORB_EDGE_MARGIN, position.y),
+      window.innerHeight - ORB_EDGE_MARGIN,
+    ),
+  };
+}
+
 export function Capture() {
   const { captureOpen, openCapture, closeCapture, draft, setDraft, refresh } =
     useWorkspace();
@@ -32,14 +58,44 @@ export function Capture() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [orbDragging, setOrbDragging] = useState(false);
+  const [orbPosition, setOrbPosition] = useState<OrbPosition | null>(null);
   const island = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const pointerStart = useRef<PointerStart | null>(null);
+  const suppressClick = useRef(false);
   const voice = useVoiceCapture((text) => {
     setDraft([draft.trim(), text].filter(Boolean).join("\n\n"));
     setHasTranscript(true);
   });
   const voiceIsland = voice.state !== "idle";
   const detectedUrl = detectUrl(draft);
+
+  useEffect(() => {
+    const savedPosition = readLocal<Partial<OrbPosition> | null>(
+      ORB_POSITION_KEY,
+      null,
+    );
+    const restoredPosition =
+      savedPosition &&
+      typeof savedPosition.x === "number" &&
+      typeof savedPosition.y === "number"
+        ? { x: savedPosition.x, y: savedPosition.y }
+        : null;
+    const restoreFrame = requestAnimationFrame(() => {
+      if (restoredPosition) setOrbPosition(clampOrbPosition(restoredPosition));
+    });
+    const keepInsideViewport = () => {
+      setOrbPosition((current) =>
+        current ? clampOrbPosition(current) : current,
+      );
+    };
+    window.addEventListener("resize", keepInsideViewport);
+    return () => {
+      cancelAnimationFrame(restoreFrame);
+      window.removeEventListener("resize", keepInsideViewport);
+    };
+  }, []);
 
   const close = useCallback(() => {
     if (busy) return;
@@ -78,6 +134,65 @@ export function Capture() {
     if (!next || voiceIsland || busy) return;
     setFile(next);
     setHasTranscript(false);
+  };
+
+  const startOrbDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0 && event.pointerType !== "touch") return;
+    const rect = island.current?.getBoundingClientRect();
+    if (!rect) return;
+    pointerStart.current = {
+      pointerId: event.pointerId,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      orbX: rect.left + rect.width / 2,
+      orbY: rect.top + rect.height / 2,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const moveOrb = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const start = pointerStart.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const distance = Math.hypot(
+      event.clientX - start.pointerX,
+      event.clientY - start.pointerY,
+    );
+    if (distance < 5 && !start.moved) return;
+    start.moved = true;
+    setOrbDragging(true);
+    setHovered(false);
+    setOrbPosition(
+      clampOrbPosition({
+        x: start.orbX + event.clientX - start.pointerX,
+        y: start.orbY + event.clientY - start.pointerY,
+      }),
+    );
+  };
+  const finishOrbDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const start = pointerStart.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    pointerStart.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    suppressClick.current = true;
+    if (start.moved) {
+      const next = clampOrbPosition({
+        x: start.orbX + event.clientX - start.pointerX,
+        y: start.orbY + event.clientY - start.pointerY,
+      });
+      setOrbPosition(next);
+      setOrbDragging(false);
+      try {
+        writeLocal(ORB_POSITION_KEY, next);
+      } catch {
+        // Position is still useful for the current visit.
+      }
+      return;
+    }
+    openCapture();
+  };
+  const cancelOrbDrag = () => {
+    pointerStart.current = null;
+    setOrbDragging(false);
   };
 
   const submit = async () => {
@@ -138,8 +253,17 @@ export function Capture() {
     <>
       <div
         ref={island}
-        className={`flare-capture flare-capture--${stage} ${dragging ? "is-dragging" : ""}`}
+        className={`flare-capture flare-capture--${stage} ${dragging ? "is-dragging" : ""} ${orbDragging ? "is-orb-dragging" : ""}`}
         data-capture-state={stage}
+        style={
+          orbPosition
+            ? {
+                left: orbPosition.x,
+                top: orbPosition.y,
+                transform: "translate(-50%, -50%)",
+              }
+            : undefined
+        }
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -151,7 +275,17 @@ export function Capture() {
             aria-expanded={captureOpen}
             onFocus={() => setHovered(true)}
             onBlur={() => setHovered(false)}
-            onClick={() => openCapture()}
+            onPointerDown={startOrbDrag}
+            onPointerMove={moveOrb}
+            onPointerUp={finishOrbDrag}
+            onPointerCancel={cancelOrbDrag}
+            onClick={() => {
+              if (suppressClick.current) {
+                suppressClick.current = false;
+                return;
+              }
+              openCapture();
+            }}
           >
             <span className="flare-orb" aria-hidden="true" />
             <span className="flare-capture-label">Add context</span>

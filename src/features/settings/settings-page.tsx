@@ -5,10 +5,6 @@ import { Dialog } from "@/components/dialog";
 import { useWorkspace, type Theme } from "@/components/workspace-context";
 import { readLocal, writeLocal } from "@/lib/storage/preferences";
 const defaults = {
-  name: "Elena Rostova",
-  email: "elena.rostova@acme.ai",
-  role: "Staff Architect",
-  timezone: "Europe/Moscow",
   alerts: true,
   digest: true,
   privateChannels: true,
@@ -17,7 +13,8 @@ const defaults = {
   emailDelivery: true,
 };
 export function SettingsPage() {
-  const { theme, setTheme, compact, setCompact } = useWorkspace();
+  const { theme, setTheme, compact, setCompact, profile, updateProfile } =
+    useWorkspace();
   const [settings, setSettings] = useState(defaults);
   const [billingOpen, setBillingOpen] = useState(false);
   const [message, setMessage] = useState(
@@ -29,7 +26,14 @@ export function SettingsPage() {
         "flare-settings-v1",
         {},
       );
-      setSettings({ ...defaults, ...value });
+      setSettings({
+        alerts: value.alerts ?? defaults.alerts,
+        digest: value.digest ?? defaults.digest,
+        privateChannels: value.privateChannels ?? defaults.privateChannels,
+        retention: value.retention ?? defaults.retention,
+        telegram: value.telegram ?? defaults.telegram,
+        emailDelivery: value.emailDelivery ?? defaults.emailDelivery,
+      });
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -67,7 +71,7 @@ export function SettingsPage() {
       >
         <div className="profile-editor">
           <span className="avatar large">
-            {settings.name
+            {profile.name
               .split(" ")
               .map((p) => p[0])
               .slice(0, 2)
@@ -77,31 +81,31 @@ export function SettingsPage() {
             <label>
               Full Name
               <input
-                value={settings.name}
+                value={profile.name}
                 maxLength={100}
-                onChange={(e) => update("name", e.target.value)}
+                onChange={(e) => updateProfile({ name: e.target.value })}
               />
             </label>
             <label>
               Work Email
               <input
                 type="email"
-                value={settings.email}
-                onChange={(e) => update("email", e.target.value)}
+                value={profile.email}
+                onChange={(e) => updateProfile({ email: e.target.value })}
               />
             </label>
             <label>
               Role / Position
               <input
-                value={settings.role}
-                onChange={(e) => update("role", e.target.value)}
+                value={profile.role}
+                onChange={(e) => updateProfile({ role: e.target.value })}
               />
             </label>
             <label>
               Timezone
               <select
-                value={settings.timezone}
-                onChange={(e) => update("timezone", e.target.value)}
+                value={profile.timezone}
+                onChange={(e) => updateProfile({ timezone: e.target.value })}
               >
                 <option>Europe/Moscow</option>
                 <option>America/Los_Angeles</option>

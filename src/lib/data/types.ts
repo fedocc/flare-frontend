@@ -61,6 +61,14 @@ export interface Source {
   channels: string[];
   status: "connected" | "syncing" | "disconnected";
   updated: string;
+  providers?: SourceProvider[];
+}
+export interface SourceProvider {
+  id: string;
+  name: string;
+  status: "connected" | "disconnected";
+  selectedApps: string[];
+  updated: string;
 }
 export interface ListItemOptions {
   query?: string;

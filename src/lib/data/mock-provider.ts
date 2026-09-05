@@ -48,7 +48,13 @@ const titleFor = (input: CreateItemInput) =>
 export class MockDataProvider implements FlareDataProvider {
   async listSources(): Promise<Source[]> {
     const saved = readLocal<Source[] | null>("flare-sources-v1", null);
-    return clone(Array.isArray(saved) ? saved : seedSources);
+    if (!Array.isArray(saved)) return clone(seedSources);
+    const savedById = new Map(saved.map((source) => [source.id, source]));
+    const seededIds = new Set(seedSources.map((source) => source.id));
+    return clone([
+      ...seedSources.map((source) => savedById.get(source.id) ?? source),
+      ...saved.filter((source) => !seededIds.has(source.id)),
+    ]);
   }
   async saveSource(source: Source): Promise<Source> {
     const sources = await this.listSources();

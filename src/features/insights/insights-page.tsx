@@ -68,9 +68,11 @@ export function InsightsPage() {
       document.removeEventListener("keydown", escape);
     };
   }, [panelOpen]);
-  const selectInsight = (id: string) => {
+  const toggleInsight = (id: string) => {
+    const opening = !panelOpen || selected !== id;
     setSelected(id);
-    setPanelOpen(true);
+    setPanelOpen(opening);
+    if (!opening) return;
     if (window.innerWidth <= 1050)
       requestAnimationFrame(() =>
         document
@@ -95,7 +97,10 @@ export function InsightsPage() {
         <div className="filters">
           <button
             className={`filter ${filter === "All" ? "selected" : ""}`}
-            onClick={() => setFilter("All")}
+            onClick={() => {
+              setFilter("All");
+              setPanelOpen(false);
+            }}
           >
             All <span>{insights.length}</span>
           </button>
@@ -106,6 +111,7 @@ export function InsightsPage() {
               onClick={() => {
                 setFilter(kind);
                 setSelected(insights.find((i) => i.kind === kind)?.id ?? null);
+                setPanelOpen(false);
               }}
             >
               {plural[kind]}{" "}
@@ -132,7 +138,27 @@ export function InsightsPage() {
               <article
                 key={insight.id}
                 className={`card insight-card ${active?.id === insight.id ? "active" : ""}`}
-                onClick={() => selectInsight(insight.id)}
+                role="button"
+                tabIndex={0}
+                aria-expanded={active?.id === insight.id}
+                aria-controls={
+                  active?.id === insight.id ? "insight-evidence" : undefined
+                }
+                onClick={(event) => {
+                  if (
+                    (event.target as Element).closest(
+                      "a, button, input, select, textarea",
+                    )
+                  )
+                    return;
+                  toggleInsight(insight.id);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    toggleInsight(insight.id);
+                  }
+                }}
               >
                 <div className="card-meta">
                   <span
@@ -153,18 +179,7 @@ export function InsightsPage() {
                     </span>
                   )}
                 </div>
-                <h2>
-                  <button
-                    className="title-button"
-                    aria-expanded={active?.id === insight.id}
-                    aria-controls={
-                      active?.id === insight.id ? "insight-evidence" : undefined
-                    }
-                    onClick={() => selectInsight(insight.id)}
-                  >
-                    {insight.title}
-                  </button>
-                </h2>
+                <h2>{insight.title}</h2>
                 <p className="description">{insight.summary}</p>
                 <div className="callout">
                   <Icon name="info" />

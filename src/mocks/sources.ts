@@ -46,6 +46,42 @@ export const seedSources: Source[] = [
     updated: "Synced 1h ago",
   },
   {
+    id: "gmail",
+    name: "Google Gmail",
+    scope: "Product & Support Mailboxes",
+    description:
+      "Monitored labels surface customer, product, and escalation context.",
+    channels: ["Product Feedback", "Customer Escalations", "Research"],
+    status: "connected",
+    updated: "Synced 4m ago",
+  },
+  {
+    id: "reviews",
+    name: "App Reviews",
+    scope: "Mobile app feedback",
+    description:
+      "One review integration for Apple App Store and Google Play feedback.",
+    channels: [],
+    status: "connected",
+    updated: "Synced 18m ago",
+    providers: [
+      {
+        id: "app-store",
+        name: "Apple App Store",
+        status: "connected",
+        selectedApps: ["Flare for iPhone"],
+        updated: "Synced 18m ago",
+      },
+      {
+        id: "google-play",
+        name: "Google Play",
+        status: "connected",
+        selectedApps: ["Flare Android"],
+        updated: "Synced 18m ago",
+      },
+    ],
+  },
+  {
     id: "slack",
     name: "Slack",
     scope: "Enterprise Workspace",

@@ -75,25 +75,11 @@ export function SourcesPage() {
         <div className="source-grid">
           {sources.map((source) => (
             <article
-              className={`card source-card ${source.status === "disconnected" ? "needs-attention" : ""}`}
+              className={`card source-card ${source.status === "disconnected" ? "needs-attention" : ""} ${source.providers?.length ? "has-providers" : ""}`}
               key={source.id}
             >
               <header>
-                <span className={`source-logo source-${source.id}`}>
-                  <Icon
-                    name={
-                      source.id === "telegram"
-                        ? "arrow"
-                        : source.id === "github"
-                          ? "system"
-                          : source.id === "linear"
-                            ? "check"
-                            : source.id === "drive"
-                              ? "vault"
-                              : "note"
-                    }
-                  />
-                </span>
+                <SourceIcon source={source} />
                 <div>
                   <h2>{source.name}</h2>
                   <p className="muted">{source.scope}</p>
@@ -117,6 +103,24 @@ export function SourcesPage() {
                   <p className="warning-text">
                     Authentication expired · Re-authorization required
                   </p>
+                ) : source.providers?.length ? (
+                  <div className="review-providers">
+                    {source.providers.map((provider) => (
+                      <div className="review-provider" key={provider.id}>
+                        <div>
+                          <strong>{provider.name}</strong>
+                          <span className={`badge status-${provider.status}`}>
+                            <span className="dot" />
+                            {provider.status === "connected"
+                              ? "Connected"
+                              : "Disconnected"}
+                          </span>
+                        </div>
+                        <p>{provider.selectedApps.join(" · ")}</p>
+                        <small className="muted">{provider.updated}</small>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="tags">
                     {source.channels.map((channel) => (
@@ -166,18 +170,29 @@ export function SourcesPage() {
               const name = String(
                 form.get("name") ?? editing?.name ?? "",
               ).trim();
+              const providers = editing?.providers?.map((provider) => ({
+                ...provider,
+                selectedApps: String(form.get(`provider-${provider.id}`) ?? "")
+                  .split(",")
+                  .map((value) => value.trim())
+                  .filter(Boolean),
+                updated: "Configured just now (demo)",
+              }));
               void save({
                 id: editing?.id ?? crypto.randomUUID(),
                 name,
                 scope: String(form.get("scope") ?? ""),
-                channels: String(form.get("channels") ?? "")
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean),
+                channels: providers
+                  ? (editing?.channels ?? [])
+                  : String(form.get("channels") ?? "")
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
                 description:
                   editing?.description ?? "New workspace context source.",
                 status: "connected",
                 updated: "Configured just now (demo)",
+                providers,
               });
             }}
           >
@@ -213,14 +228,29 @@ export function SourcesPage() {
               Workspace / scope
               <input name="scope" required defaultValue={editing?.scope} />
             </label>
-            <label>
-              Channels or folders, separated by commas
-              <input
-                name="channels"
-                required
-                defaultValue={editing?.channels.join(", ")}
-              />
-            </label>
+            {editing?.providers ? (
+              editing.providers.map((provider) => (
+                <label key={provider.id}>
+                  {provider.name} selected apps, separated by commas
+                  <input
+                    name={`provider-${provider.id}`}
+                    required
+                    defaultValue={provider.selectedApps.join(", ")}
+                  />
+                </label>
+              ))
+            ) : (
+              <label>
+                {editing?.id === "gmail"
+                  ? "Monitored labels, separated by commas"
+                  : "Channels or folders, separated by commas"}
+                <input
+                  name="channels"
+                  required
+                  defaultValue={editing?.channels.join(", ")}
+                />
+              </label>
+            )}
             {error && (
               <p role="alert" className="error-text">
                 {error}
@@ -235,5 +265,24 @@ export function SourcesPage() {
         </Dialog>
       )}
     </section>
+  );
+}
+function SourceIcon({ source }: { source: Source }) {
+  const icon =
+    source.id === "telegram"
+      ? "arrow"
+      : source.id === "github"
+        ? "system"
+        : source.id === "linear"
+          ? "check"
+          : source.id === "drive"
+            ? "vault"
+            : source.id === "reviews"
+              ? "sources"
+              : "note";
+  return (
+    <span className={`source-logo source-${source.id}`}>
+      <Icon name={icon} />
+    </span>
   );
 }

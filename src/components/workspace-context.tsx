@@ -8,6 +8,18 @@ import {
 } from "react";
 import { readLocal, writeLocal } from "@/lib/storage/preferences";
 export type Theme = "system" | "light" | "dark";
+export interface Profile {
+  name: string;
+  email: string;
+  role: string;
+  timezone: string;
+}
+export const defaultProfile: Profile = {
+  name: "Elena Rostova",
+  email: "elena.rostova@acme.ai",
+  role: "Staff Architect",
+  timezone: "Europe/Moscow",
+};
 interface WorkspaceState {
   theme: Theme;
   dark: boolean;
@@ -21,6 +33,8 @@ interface WorkspaceState {
   refresh: () => void;
   compact: boolean;
   setCompact: (value: boolean) => void;
+  profile: Profile;
+  updateProfile: (changes: Partial<Profile>) => void;
   notice: string;
 }
 const Context = createContext<WorkspaceState | null>(null);
@@ -32,6 +46,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [draft, setDraft] = useState("");
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
+  const [profile, setProfile] = useState<Profile>(defaultProfile);
   useEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");
     const sync = () => {
@@ -42,6 +57,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateTheme(selected);
       setDark(selected === "dark" || (selected === "system" && media.matches));
       updateCompact(readLocal<boolean>("flare-compact", false) === true);
+      const legacy = readLocal<Partial<Profile>>("flare-settings-v1", {});
+      const storedProfile = readLocal<Partial<Profile>>(
+        "flare-profile-v1",
+        {},
+      );
+      setProfile({ ...defaultProfile, ...legacy, ...storedProfile });
     };
     sync();
     media.addEventListener("change", sync);
@@ -80,6 +101,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       );
     }
   };
+  const updateProfile = (changes: Partial<Profile>) => {
+    const next = { ...profile, ...changes };
+    setProfile(next);
+    try {
+      writeLocal("flare-profile-v1", next);
+    } catch {
+      setNotice(
+        "Profile changed for this visit. Browser storage is unavailable.",
+      );
+    }
+  };
   return (
     <Context.Provider
       value={{
@@ -88,6 +120,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setTheme,
         compact,
         setCompact,
+        profile,
+        updateProfile,
         captureOpen,
         openCapture: (text) => {
           if (text !== undefined) setDraft(text);

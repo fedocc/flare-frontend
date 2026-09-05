@@ -23,7 +23,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [drawer, setDrawer] = useState(false);
-  const { dark, setTheme, openCapture, revision, notice } = useWorkspace();
+  const { dark, setTheme, openCapture, revision, notice, profile } =
+    useWorkspace();
+  const initials =
+    profile.name
+      .split(" ")
+      .map((part) => part[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("") || "F";
   const [counts, setCounts] = useState([0, 0, 0]);
   useEffect(() => {
     let live = true;
@@ -91,9 +99,10 @@ function Shell({ children }: { children: ReactNode }) {
           />
         </label>
         <Link href="/settings" className="profile">
-          <span className="avatar">ER</span>
+          <span className="avatar">{initials}</span>
           <span>
-            Elena Rostova<small>Staff Architect</small>
+            {profile.name || "Unnamed profile"}
+            <small>{profile.role || "No role set"}</small>
           </span>
           <Icon name="chevron" />
         </Link>

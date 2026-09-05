@@ -973,6 +973,36 @@ blockquote {
 .source-card > .meta {
   margin-bottom: 24px;
 }
+.source-card.has-providers {
+  min-height: 330px;
+}
+.review-providers {
+  display: grid;
+  gap: 8px;
+}
+.review-provider {
+  padding: 8px 9px;
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+  background: var(--inset);
+}
+.review-provider > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.review-provider strong {
+  font-size: 12px;
+}
+.review-provider .badge {
+  margin-left: auto;
+}
+.review-provider p,
+.review-provider small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+}
 .source-card footer .button {
   width: 100%;
   height: 32px;
@@ -1574,7 +1604,7 @@ blockquote {
     box-shadow 180ms ease-out;
 }
 .flare-capture--hover {
-  width: 154px;
+  width: 140px;
   height: 40px;
   max-height: 40px;
   border-color: var(--line);
@@ -1613,16 +1643,20 @@ blockquote {
   align-items: center;
   width: 100%;
   height: 100%;
-  gap: 9px;
+  gap: 7px;
   padding: 0 3px;
   overflow: hidden;
   white-space: nowrap;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
 }
 .flare-capture-label {
   max-width: 0;
   overflow: hidden;
   color: var(--ink);
   font-size: 13px;
+  line-height: 1;
   font-weight: 600;
   opacity: 0;
   transform: translateX(-5px);
@@ -1632,7 +1666,12 @@ blockquote {
     transform 210ms cubic-bezier(0.2, 0, 0, 1);
 }
 .flare-capture--hover .flare-capture-trigger {
-  padding-left: 3px;
+  padding: 0 3px;
+}
+.flare-capture.is-orb-dragging,
+.flare-capture.is-orb-dragging .flare-capture-trigger {
+  cursor: grabbing;
+  transition: none;
 }
 .flare-capture--hover .flare-capture-label {
   max-width: 100px;
