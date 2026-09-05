@@ -21,6 +21,7 @@ export function InsightsPage() {
   const params = useSearchParams();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [filter, setFilter] = useState<InsightKind | "All">("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,7 +33,7 @@ export function InsightsPage() {
       .then((list) => {
         if (live) {
           setInsights(list);
-          setSelected(params.get("insight") ?? list[0]?.id ?? null);
+          setSelected(params.get("insight"));
         }
       })
       .catch(() => {
@@ -47,9 +48,29 @@ export function InsightsPage() {
     };
   }, [params]);
   const visible = insights.filter((i) => filter === "All" || i.kind === filter);
-  const active = visible.find((i) => i.id === selected);
+  const active = panelOpen ? visible.find((i) => i.id === selected) : undefined;
+  useEffect(() => {
+    if (!panelOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (
+        event.target instanceof Element &&
+        !event.target.closest(".evidence-panel, .insight-card")
+      )
+        setPanelOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPanelOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [panelOpen]);
   const selectInsight = (id: string) => {
     setSelected(id);
+    setPanelOpen(true);
     if (window.innerWidth <= 1050)
       requestAnimationFrame(() =>
         document
@@ -111,6 +132,7 @@ export function InsightsPage() {
               <article
                 key={insight.id}
                 className={`card insight-card ${active?.id === insight.id ? "active" : ""}`}
+                onClick={() => selectInsight(insight.id)}
               >
                 <div className="card-meta">
                   <span
@@ -134,6 +156,10 @@ export function InsightsPage() {
                 <h2>
                   <button
                     className="title-button"
+                    aria-expanded={active?.id === insight.id}
+                    aria-controls={
+                      active?.id === insight.id ? "insight-evidence" : undefined
+                    }
                     onClick={() => selectInsight(insight.id)}
                   >
                     {insight.title}
@@ -152,12 +178,6 @@ export function InsightsPage() {
                     <Icon name="sources" />
                     {insight.evidence.length} sources
                   </span>
-                  <button
-                    className="text-button"
-                    onClick={() => selectInsight(insight.id)}
-                  >
-                    View evidence <Icon name="arrow" />
-                  </button>
                 </footer>
               </article>
             ))}
@@ -165,7 +185,11 @@ export function InsightsPage() {
         )}
       </section>
       {active && (
-        <aside className="evidence-panel">
+        <aside
+          className="evidence-panel"
+          id="insight-evidence"
+          aria-label="Insight evidence"
+        >
           <header>
             <h2>
               <Icon name="note" />
@@ -174,7 +198,7 @@ export function InsightsPage() {
             <button
               className="icon-button"
               aria-label="Close evidence"
-              onClick={() => setSelected(null)}
+              onClick={() => setPanelOpen(false)}
             >
               <Icon name="close" />
             </button>

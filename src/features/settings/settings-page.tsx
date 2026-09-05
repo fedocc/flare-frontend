@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import { Icon } from "@/components/icons";
+import { Dialog } from "@/components/dialog";
 import { useWorkspace, type Theme } from "@/components/workspace-context";
 import { readLocal, writeLocal } from "@/lib/storage/preferences";
 const defaults = {
@@ -18,6 +19,7 @@ const defaults = {
 export function SettingsPage() {
   const { theme, setTheme, compact, setCompact } = useWorkspace();
   const [settings, setSettings] = useState(defaults);
+  const [billingOpen, setBillingOpen] = useState(false);
   const [message, setMessage] = useState(
     "Preferences are saved in this browser",
   );
@@ -110,6 +112,50 @@ export function SettingsPage() {
           </div>
         </div>
       </SettingsSection>
+      <SettingsSection
+        title="Plan & Billing"
+        subtitle="Demo only. No payments or subscriptions are connected."
+        icon="file"
+      >
+        <SettingRow title="Current plan" description="Not configured">
+          <span className="badge">Mock</span>
+        </SettingRow>
+        <SettingRow title="Billing status" description="Not connected">
+          <button className="button" onClick={() => setBillingOpen(true)}>
+            Manage billing
+          </button>
+        </SettingRow>
+        <SettingRow
+          title="Payment method"
+          description="No payment method on file"
+        >
+          <span className="muted">—</span>
+        </SettingRow>
+        <SettingRow title="Invoices" description="No invoices yet">
+          <span className="muted">—</span>
+        </SettingRow>
+      </SettingsSection>
+      {billingOpen && (
+        <Dialog title="Manage billing" onClose={() => setBillingOpen(false)}>
+          <header className="sheet-header">
+            <h2>Manage billing</h2>
+            <button
+              className="icon-button"
+              aria-label="Close billing"
+              onClick={() => setBillingOpen(false)}
+            >
+              <Icon name="close" />
+            </button>
+          </header>
+          <p>
+            Billing is not connected in this demo. There is no active
+            subscription, saved payment method, or invoice history.
+          </p>
+          <p className="muted">
+            No payment details are collected and no charges can be made.
+          </p>
+        </Dialog>
+      )}
       <SettingsSection
         title="Appearance & Theme"
         subtitle="Customize how Flare looks on your display."

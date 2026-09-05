@@ -611,6 +611,22 @@ kbd {
 }
 .insight-card {
   padding: 20px;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 160ms ease-out;
+}
+.insight-card:hover {
+  border-color: var(--accent);
+}
+.insight-card:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.insight-card .title-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
 }
 .insight-card.active {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
@@ -1512,6 +1528,218 @@ blockquote {
   }
   .skip-link {
     left: 16px;
+  }
+}
+.flare-orb {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 32% 25%,
+    #d7f3ff,
+    #69bcff 28%,
+    var(--accent) 65%,
+    #164b91
+  );
+  box-shadow:
+    inset -2px -3px 5px #003b6f35,
+    0 0 16px color-mix(in srgb, var(--accent) 22%, transparent);
+  animation: orb-breathe 4s ease-in-out infinite;
+}
+.flare-capture {
+  position: fixed;
+  z-index: 45;
+  top: 12px;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  width: 36px;
+  height: 36px;
+  max-height: 36px;
+  transform: translateX(-50%);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  transition:
+    width 210ms cubic-bezier(0.2, 0, 0, 1),
+    height 240ms cubic-bezier(0.2, 0, 0, 1),
+    max-height 240ms cubic-bezier(0.2, 0, 0, 1),
+    padding 210ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 180ms ease-out,
+    background-color 180ms ease-out,
+    box-shadow 180ms ease-out;
+}
+.flare-capture--hover {
+  width: 154px;
+  height: 40px;
+  max-height: 40px;
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--float) 92%, var(--surface));
+  box-shadow: 0 10px 28px #00000012;
+  backdrop-filter: blur(16px);
+}
+.flare-capture--capture {
+  width: min(500px, calc(100vw - 32px));
+  min-height: 204px;
+  height: auto;
+  max-height: 360px;
+  padding: 12px;
+  border-radius: 22px;
+  border-color: var(--line);
+  background: var(--float);
+  box-shadow: 0 18px 48px #0000001c;
+  backdrop-filter: blur(20px);
+}
+.flare-capture--voice {
+  width: min(360px, calc(100vw - 32px));
+  height: 52px;
+  max-height: 52px;
+  padding: 7px 10px;
+  border-color: var(--line);
+  background: var(--float);
+  box-shadow: 0 14px 36px #00000018;
+  backdrop-filter: blur(20px);
+}
+.flare-capture.is-dragging {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.flare-capture-trigger {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  gap: 9px;
+  padding: 0 3px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.flare-capture-label {
+  max-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateX(-5px);
+  transition:
+    max-width 210ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 120ms ease-out 45ms,
+    transform 210ms cubic-bezier(0.2, 0, 0, 1);
+}
+.flare-capture--hover .flare-capture-trigger {
+  padding-left: 3px;
+}
+.flare-capture--hover .flare-capture-label {
+  max-width: 100px;
+  opacity: 1;
+  transform: none;
+}
+.flare-capture-panel {
+  width: 100%;
+}
+.flare-capture-panel textarea {
+  display: block;
+  width: 100%;
+  min-height: 102px;
+  max-height: 36dvh;
+  padding: 7px;
+  resize: vertical;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.45;
+}
+.flare-capture-panel textarea:focus {
+  outline: none;
+}
+.flare-capture-panel .capture-actions {
+  margin-top: 8px;
+  padding-top: 9px;
+}
+.capture-dropzone {
+  border-radius: 12px;
+}
+.capture-hint,
+.capture-error {
+  margin: 0 7px 7px;
+  font-size: 12px;
+}
+.capture-hint {
+  color: var(--secondary);
+}
+.capture-error {
+  color: var(--red);
+}
+.capture-drop-hint {
+  margin-right: auto;
+  color: var(--secondary);
+  font-size: 11px;
+}
+.capture-close {
+  margin-left: 2px;
+}
+.flare-recording-island {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  gap: 12px;
+  padding: 0 1px;
+}
+.flare-recording-island .flare-orb {
+  width: 28px;
+  height: 28px;
+}
+.voice-timer {
+  font-variant-numeric: tabular-nums;
+  min-width: 38px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.voice-waveform {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  height: 28px;
+}
+.voice-waveform i {
+  display: block;
+  width: 2px;
+  border-radius: 3px;
+  background: var(--accent);
+  animation: voice-wave 700ms ease-in-out infinite alternate;
+}
+.voice-stop {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.voice-stop span {
+  width: 10px;
+  height: 10px;
+  background: var(--ink);
+  border-radius: 3px;
+}
+@keyframes orb-breathe {
+  50% {
+    transform: scale(1.06) rotate(8deg);
+    filter: brightness(1.08);
+  }
+}
+@keyframes voice-wave {
+  to {
+    transform: scaleY(0.35);
   }
 }
 @media (prefers-reduced-motion: reduce) {
