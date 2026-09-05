@@ -23,5 +23,9 @@ Logical operations expected by the interface:
 - `createItem({ type, title?, content?, sourceUrl?, fileName?, fileSize?, status? }) → Item`
 - `listInsights() → Insight[]`
 - `getInsight(id) → Insight | null`
+- `listSources() → Source[]`
+- `saveSource(source) → Source`
+
+Cupertino additions are optional on existing item/insight records: `Item.category` (discussion, pull-request, note, voice), `sourceLabel`, `author`, and `fileType`; `Insight.kind` (Contradiction, Repeated Problem, Hidden Connection, Unresolved Question) and `detailTitle`. Old locally captured items continue to work without these fields. `Source` contains `id`, `name`, `scope`, `description`, `channels`, `status` (connected, syncing, disconnected), and a human-readable `updated` label. The source adapter must replace demo connection behavior with the real authorization/sync flow during integration.
 
 One possible REST mapping is `GET /items`, `GET /items/:id`, `POST /items`, `GET /insights`, and `GET /insights/:id`. `POST /items` may be asynchronous: return an `Item` with `status: "processing"`, then allow the client to refresh or subscribe. Authentication, upload URLs, pagination, and delivery mechanism remain backend concerns.

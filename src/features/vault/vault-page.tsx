@@ -1,13 +1,298 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { dataProvider, type Item, type ItemType } from "@/lib/data";
+import { dataProvider, type Item } from "@/lib/data";
+import { useWorkspace } from "@/components/workspace-context";
 import { Icon, itemIcon } from "@/components/icons";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
-import { ItemType as TypeLabel } from "@/components/item-type";
-const filters: { label:string; value:ItemType|"all" }[] = [{label:"All",value:"all"},{label:"Notes",value:"note"},{label:"URLs",value:"url"},{label:"Files",value:"file"},{label:"Audio",value:"audio"}];
-const date = (value:string) => new Intl.DateTimeFormat("en", { month:"short", day:"numeric" }).format(new Date(value));
-export function VaultPage() { const params = useSearchParams(); const [query,setQuery]=useState(""); const [type,setType]=useState<ItemType|"all">("all"); const [items,setItems]=useState<Item[]>([]); const [active,setActive]=useState<Item|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
- useEffect(() => { let live=true; void dataProvider.listItems({query,type}).then((list)=>{ if(live){setItems(list);setActive((current)=>list.find((item)=>item.id === params.get("item")) ?? list.find((item)=>item.id===current?.id) ?? list[0] ?? null);}}).catch(()=>live&&setError("The vault could not be loaded.")).finally(()=>live&&setLoading(false)); return()=>{live=false;}; },[query,type,params]);
- return <div className="min-h-[calc(100vh-3.5rem)] bg-white xl:flex"><section className="min-w-0 flex-1 border-b hairline xl:border-b-0 xl:border-r"><div className="space-y-4 border-b hairline px-5 pb-4 pt-5"><div className="flex items-center justify-between"><h1 className="text-[24px] font-semibold tracking-[-.03em]">Vault</h1><button onClick={() => void dataProvider.resetDemoData().then(() => window.location.reload())} title="Remove locally captured demo items" className="focus-ring rounded p-1 text-slate-400 hover:text-slate-950"><Icon name="reset" className="h-4 w-4"/></button></div><label className="relative block"><Icon name="search" className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input value={query} onChange={(e)=>setQuery(e.target.value)} className="focus-ring w-full rounded border hairline bg-slate-50 py-2 pl-8 pr-3 outline-none" placeholder="Search your vault…"/></label><div className="flex gap-1.5 overflow-x-auto">{filters.map((filter)=><button key={filter.value} onClick={()=>setType(filter.value)} className={`focus-ring shrink-0 rounded px-3 py-1 text-xs ${filter.value===type ? "bg-slate-950 text-white" : "border hairline text-slate-600 hover:bg-slate-50"}`}>{filter.label}</button>)}</div></div><div className="divide-y divide-slate-100">{loading?<LoadingState/>:error?<ErrorState message={error}/>:items.length===0?<EmptyState title="No matching items" detail="Try a different search or type filter."/>:items.map((item)=><button onClick={()=>setActive(item)} key={item.id} className={`focus-ring flex w-full border-l-2 p-4 text-left transition-colors ${active?.id===item.id ? "border-slate-950 bg-[#eff4ff]" : "border-transparent hover:bg-slate-50"}`}><Icon name={itemIcon[item.type]} className="mr-3 mt-0.5 h-[18px] w-[18px] shrink-0 text-slate-500"/><span className="min-w-0 flex-1"><span className="flex justify-between gap-3"><b className="truncate">{item.title}</b><time className="mono shrink-0 text-[10px] tracking-wide text-slate-500">{date(item.createdAt)}</time></span><span className="mt-1 block truncate text-slate-600">{item.content}</span><span className="mt-2 block"><TypeLabel type={item.type}/></span></span></button>)}</div></section><aside className="w-full bg-white xl:w-[440px] xl:shrink-0">{active && <ItemDetail item={active} onRelated={setActive}/>}</aside></div>; }
-function ItemDetail({item,onRelated}:{item:Item;onRelated:(item:Item)=>void}) { const [related,setRelated]=useState<Item[]>([]); useEffect(()=>{void Promise.all(item.relatedItemIds.map((id)=>dataProvider.getItem(id))).then((items)=>setRelated(items.filter((value):value is Item=>Boolean(value))));},[item]); return <div className="space-y-7 p-6"><header className="space-y-2 border-b hairline pb-5"><div className="flex justify-between gap-3 text-xs text-slate-500"><TypeLabel type={item.type}/><time className="mono text-[10px]">{date(item.createdAt)}</time></div><h2 className="text-lg font-semibold tracking-tight">{item.title}</h2>{item.type === "audio" && <div className="rounded-md border hairline bg-slate-50 p-3"><div className="flex items-center justify-between text-xs"><span className="inline-flex items-center gap-2"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-black text-white">▶</span>14:32</span><span className="text-slate-500">28:10</span></div><div className="mt-3 flex h-8 items-center gap-1 overflow-hidden border hairline bg-white px-2">{Array.from({length:22},(_,i)=><i key={i} className={`block w-1 rounded-full ${i<10?"bg-black":"bg-slate-300"}`} style={{height:`${10+(i*13)%18}px`}}/>)}</div></div>}</header><section><h3 className="mb-3 font-semibold">Extracted Facts</h3>{item.extractedFacts.length ? <div className="space-y-2">{item.extractedFacts.map((fact,index)=><div className="flex gap-3 rounded border hairline p-3" key={fact.id}><span className="mono text-xs text-slate-500">{index+1}.</span><p>{fact.text}</p></div>)}</div> : <p className="rounded border hairline bg-slate-50 p-3 text-slate-500">No extracted facts yet.</p>}</section><section><h3 className="mb-3 font-semibold">{item.type === "audio" ? "Transcript" : "Original Content"}</h3><blockquote className="border-l-2 border-slate-300 bg-slate-50/60 py-2 pl-3 leading-relaxed text-slate-600">{item.content}</blockquote>{item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-medium underline">Open original URL ↗</a>}</section><section><h3 className="mb-3 font-semibold">Related Items</h3>{related.length ? <div className="space-y-2">{related.map((relatedItem)=><button onClick={()=>onRelated(relatedItem)} key={relatedItem.id} className="focus-ring flex w-full items-center justify-between rounded border hairline p-3 text-left hover:bg-slate-50"><span className="flex items-center gap-2"><Icon name={itemIcon[relatedItem.type]} className="h-4 w-4 text-slate-500"/>{relatedItem.title}</span><Icon name="arrow" className="h-4 w-4"/></button>)}</div> : <p className="text-slate-500">No related items yet.</p>}</section></div>; }
+import { Dialog } from "@/components/dialog";
+const category = (item: Item) =>
+  item.category ?? (item.type === "audio" ? "voice" : "note");
+const filters = [
+  { id: "all", label: "All" },
+  { id: "discussion", label: "Discussions" },
+  { id: "pull-request", label: "Pull Requests" },
+  { id: "note", label: "Notes & Specs" },
+  { id: "voice", label: "Voice Memos" },
+  { id: "url", label: "URLs" },
+  { id: "file", label: "Files" },
+];
+export function VaultPage() {
+  const params = useSearchParams();
+  const { revision } = useWorkspace();
+  const [items, setItems] = useState<Item[]>([]);
+  const [selected, setSelected] = useState<Item | null>(null);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [view, setView] = useState("grid");
+  const [sort, setSort] = useState("latest");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let live = true;
+    void dataProvider
+      .listItems()
+      .then((list) => {
+        if (live) {
+          setItems(list);
+          const id = params.get("item");
+          setSelected(list.find((i) => i.id === id) ?? null);
+        }
+      })
+      .catch(() => {
+        if (live) setError("Vault could not be loaded. Refresh to try again.");
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [revision, params]);
+  const matches = (i: Item, id: string) =>
+    id === "all" || category(i) === id || i.type === id;
+  const visible = items
+    .filter(
+      (i) =>
+        matches(i, filter) &&
+        `${i.title} ${i.content} ${i.sourceLabel ?? ""}`
+          .toLowerCase()
+          .includes(query.toLowerCase()),
+    )
+    .sort((a, b) =>
+      sort === "title"
+        ? a.title.localeCompare(b.title)
+        : b.createdAt.localeCompare(a.createdAt),
+    );
+  return (
+    <section className="page vault-page">
+      <header className="page-heading">
+        <p className="eyebrow">
+          <span className="dot green" />
+          TEAM KNOWLEDGE ARCHIVE · {items.length} MEMORIES INDEXED
+        </p>
+        <h1>Vault</h1>
+        <p>
+          Searchable memory across team conversations, pull requests, notes, and
+          transcripts.
+        </p>
+      </header>
+      <div className="vault-toolbar">
+        <label className="search-field">
+          <Icon name="search" />
+          <input
+            aria-label="Search vault"
+            placeholder="Filter by entity, keyword, or context…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setQuery("");
+            }}
+          />
+          <kbd>Esc</kbd>
+        </label>
+        <select
+          className="button"
+          aria-label="Sort vault"
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+        >
+          <option value="latest">Latest first</option>
+          <option value="title">Title A–Z</option>
+        </select>
+        <div className="view-toggle">
+          {["grid", "list"].map((v) => (
+            <button
+              className={`icon-button ${v === view ? "active" : ""}`}
+              key={v}
+              aria-label={`${v} view`}
+              aria-pressed={v === view}
+              onClick={() => setView(v)}
+            >
+              <Icon name={v === "grid" ? "grid" : "list"} />
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="filters">
+        {filters.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            className={`filter ${filter === f.id ? "selected" : ""}`}
+          >
+            {f.label}
+            <span>{items.filter((i) => matches(i, f.id)).length}</span>
+          </button>
+        ))}
+      </div>
+      {loading ? (
+        <p className="state" role="status">
+          Loading your memories…
+        </p>
+      ) : error ? (
+        <p role="alert" className="state error-text">
+          {error}
+        </p>
+      ) : !visible.length ? (
+        <div className="state">
+          <h2>No matching memories</h2>
+          <p>Try another keyword or filter, or capture something new.</p>
+        </div>
+      ) : (
+        <div className={`vault-grid ${view === "list" ? "list-view" : ""}`}>
+          {visible.map((item) => (
+            <article className="card memory-card" key={item.id}>
+              <div className="card-meta">
+                <span className="badge">{item.sourceLabel ?? item.type}</span>
+                <Icon name={itemIcon[item.type]} />
+              </div>
+              <h2>
+                <button
+                  className="title-button"
+                  onClick={() => setSelected(item)}
+                >
+                  {item.title}
+                </button>
+              </h2>
+              <p className="muted meta">
+                {item.author ?? "Team workspace"} ·{" "}
+                {new Date(item.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </p>
+              {item.type === "audio" && (
+                <button
+                  className="audio-preview"
+                  onClick={() => setSelected(item)}
+                  aria-label={`Read transcript: ${item.title}`}
+                >
+                  <Icon name="audio" />
+                  <span className="waveform">
+                    {Array.from({ length: 16 }, (_, i) => (
+                      <i
+                        key={i}
+                        style={{ height: `${6 + ((i * 7) % 20)}px` }}
+                      />
+                    ))}
+                  </span>
+                  <span>Transcript</span>
+                </button>
+              )}
+              <div className="facts">
+                <h3 className="eyebrow muted">{item.extractedFacts.length ? "EXTRACTED FACTS" : "ORIGINAL CONTENT"}</h3>
+                {item.extractedFacts.length ? (
+                  <ul>
+                    {item.extractedFacts.map((fact) => (
+                      <li key={fact.id}>{fact.text}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>
+                    {item.status === "processing"
+                      ? "Processing… Demo transcript available in item detail."
+                      : item.content.slice(0, 220)}
+                  </p>
+                )}
+              </div>
+              <footer className="card-footer">
+                <span>{item.relatedItemIds.length} related items</span>
+                <button
+                  className="text-button"
+                  onClick={() => setSelected(item)}
+                >
+                  Open {item.type === "audio" ? "transcript" : "item"}
+                  <Icon name="arrow" />
+                </button>
+              </footer>
+            </article>
+          ))}
+        </div>
+      )}
+      {selected && (
+        <Dialog
+          title={selected.title}
+          onClose={() => setSelected(null)}
+          className="item-sheet"
+        >
+          <header className="sheet-header">
+            <div>
+              <span className="eyebrow muted">
+                {selected.sourceLabel ?? selected.type} · {selected.status}
+              </span>
+              <h2>{selected.title}</h2>
+            </div>
+            <button
+              className="icon-button"
+              aria-label="Close item"
+              onClick={() => setSelected(null)}
+            >
+              <Icon name="close" />
+            </button>
+          </header>
+          <section>
+            <h3>Extracted Facts</h3>
+            {selected.extractedFacts.length ? (
+              <ul className="detail-facts">
+                {selected.extractedFacts.map((fact) => (
+                  <li key={fact.id}>{fact.text}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">No extracted facts yet.</p>
+            )}
+          </section>
+          <section>
+            <h3>
+              {selected.type === "audio" ? "Transcript" : "Original Content"}
+            </h3>
+            <p className="original-content">{selected.content}</p>
+            {selected.sourceUrl && /^https?:\/\//.test(selected.sourceUrl) && (
+              <a
+                className="text-button"
+                href={selected.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open original URL ↗
+              </a>
+            )}
+            {selected.fileName && (
+              <p className="muted">
+                {selected.fileName} ·{" "}
+                {((selected.fileSize ?? 0) / 1024).toFixed(1)} KB · metadata
+                only
+              </p>
+            )}
+          </section>
+          <section>
+            <h3>Related Items</h3>
+            {selected.relatedItemIds.length ? (
+              selected.relatedItemIds.map((id) => {
+                const item = items.find((i) => i.id === id);
+                return item ? (
+                  <button
+                    key={id}
+                    className="related-item"
+                    onClick={() => setSelected(item)}
+                  >
+                    <Icon name={itemIcon[item.type]} />
+                    {item.title}
+                    <Icon name="arrow" />
+                  </button>
+                ) : (
+                  <Link key={id} href={`/vault?item=${id}`}>
+                    Open related source
+                  </Link>
+                );
+              })
+            ) : (
+              <p className="muted">No related items yet.</p>
+            )}
+          </section>
+        </Dialog>
+      )}
+    </section>
+  );
+}

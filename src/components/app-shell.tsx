@@ -1,12 +1,143 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Icon } from "./icons";
-import { FolderIcon } from "@heroicons/react/24/outline";
-const navigation = [{ href:"/dashboard" as const, label:"Dashboard", icon:"home" as const }, { href:"/vault" as const, label:"Vault", icon:"vault" as const }, { href:"/insights" as const, label:"Insights", icon:"insights" as const }];
-export function AppShell({ children }: { children: React.ReactNode }) { const pathname = usePathname(); const [open, setOpen] = useState(false); const page = navigation.find((n) => pathname.startsWith(n.href))?.label ?? "Flare"; const nav = <nav className="space-y-1" aria-label="Primary navigation">{navigation.map((item) => { const active = pathname.startsWith(item.href); return <Link onClick={() => setOpen(false)} className={`focus-ring flex items-center gap-2.5 rounded-md border-l-2 px-3 py-2 transition-colors ${active ? "border-slate-950 bg-[#eff4ff] font-medium text-slate-950" : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-950"}`} href={item.href} key={item.href}><Icon name={item.icon} className={`h-[18px] w-[18px] ${active ? "text-slate-950" : ""}`} />{item.label}</Link>; })}</nav>;
-return <div className="min-h-screen"><aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col justify-between border-r hairline bg-white p-4 md:flex"><div className="space-y-7"><Link href="/dashboard" className="flex items-center gap-2 px-1"><span className="flex h-7 w-7 items-center justify-center rounded-[4px] bg-black text-white">♨</span><span><b className="block text-[18px] tracking-tight">Flare</b><span className="mono block text-[10px] tracking-[.13em] text-slate-500">AI SECOND BRAIN</span></span></Link>{nav}</div><div className="border-t hairline pt-3 text-slate-600"><div className="flex items-center gap-2 px-3 py-2"><FolderIcon className="h-[18px] w-[18px]"/>Acme Corp / Founder</div><div className="flex cursor-not-allowed items-center gap-2 px-3 py-2 opacity-60"><Icon name="settings" className="h-[18px] w-[18px]"/>Settings</div></div></aside>
-<header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b hairline bg-white px-4 md:left-60 md:px-5"><div className="flex items-center gap-3"><button onClick={() => setOpen(true)} className="focus-ring rounded p-1 md:hidden" aria-label="Open navigation"><Icon name="menu" className="h-5 w-5"/></button><span className="text-slate-500">Flare</span><span className="text-slate-400">/</span><span className="font-medium">{page}</span></div><div className="flex items-center gap-3"><Link href="/dashboard" className="focus-ring hidden items-center gap-1.5 rounded bg-slate-950 px-3 py-1.5 text-xs font-medium text-white sm:flex"><Icon name="plus" className="h-4 w-4"/>New item</Link><span className="mono flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-[#e5eeff] text-[10px]">FD</span></div></header>
-{open && <div className="fixed inset-0 z-50 md:hidden"><button aria-label="Close navigation" onClick={() => setOpen(false)} className="absolute inset-0 bg-slate-950/20"/><aside className="relative flex h-full w-72 flex-col justify-between border-r hairline bg-white p-4 shadow-xl"><div className="space-y-7"><div className="flex items-center justify-between"><b className="text-lg">Flare</b><button onClick={() => setOpen(false)} className="focus-ring rounded p-1"><Icon name="close" className="h-5 w-5"/></button></div>{nav}</div><div className="border-t hairline pt-3 text-slate-600">Acme Corp / Founder</div></aside></div>}
-<main className="pt-14 md:pl-60">{children}</main></div>; }
+import { WorkspaceProvider, useWorkspace } from "./workspace-context";
+import { Capture } from "@/features/capture/capture";
+import { dataProvider } from "@/lib/data";
+import { Dialog } from "./dialog";
+const navigation = [
+  { href: "/insights", label: "Insights", icon: "insights" },
+  { href: "/vault", label: "Vault", icon: "vault" },
+  { href: "/sources", label: "Sources", icon: "sources" },
+  { href: "/settings", label: "Settings", icon: "settings" },
+] as const;
+export function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <WorkspaceProvider>
+      <Shell>{children}</Shell>
+    </WorkspaceProvider>
+  );
+}
+function Shell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const [drawer, setDrawer] = useState(false);
+  const { dark, setTheme, openCapture, revision, notice } = useWorkspace();
+  const [counts, setCounts] = useState([0, 0, 0]);
+  useEffect(() => {
+    let live = true;
+    void Promise.all([
+      dataProvider.listInsights(),
+      dataProvider.listItems(),
+      dataProvider.listSources(),
+    ])
+      .then(([insights, items, sources]) => {
+        if (live) setCounts([insights.length, items.length, sources.length]);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [revision]);
+  const sidebar = (
+    <>
+      <div>
+        <Link href="/insights" className="brand">
+          <span className="brand-mark">
+            <Icon name="sources" />
+          </span>
+          <span>
+            <strong>Flare</strong>
+            <small>AI Research Engine</small>
+          </span>
+        </Link>
+        <button
+          className="button primary sidebar-capture"
+          onClick={() => {
+            setDrawer(false);
+            openCapture();
+          }}
+        >
+          <Icon name="plus" />
+          Capture<kbd>⌘K</kbd>
+        </button>
+        <nav aria-label="Primary navigation">
+          {navigation.map((entry, i) => (
+            <Link
+              key={entry.href}
+              href={entry.href}
+              onClick={() => setDrawer(false)}
+              aria-current={pathname === entry.href ? "page" : undefined}
+              className={`nav-link ${pathname === entry.href ? "active" : ""}`}
+            >
+              <Icon name={entry.icon} />
+              <span>{entry.label}</span>
+              {i < 3 && <span className="count">{counts[i]}</span>}
+            </Link>
+          ))}
+        </nav>
+      </div>
+      <div className="sidebar-footer">
+        <label className="theme-row">
+          <Icon name="moon" />
+          <span>Dark Mode</span>
+          <input
+            className="switch"
+            type="checkbox"
+            checked={dark}
+            onChange={() => setTheme(dark ? "light" : "dark")}
+            aria-label="Dark Mode"
+          />
+        </label>
+        <Link href="/settings" className="profile">
+          <span className="avatar">ER</span>
+          <span>
+            Elena Rostova<small>Staff Architect</small>
+          </span>
+          <Icon name="chevron" />
+        </Link>
+      </div>
+    </>
+  );
+  return (
+    <>
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+      <aside className="sidebar">{sidebar}</aside>
+      <button
+        className="mobile-menu icon-button"
+        aria-label="Open navigation"
+        onClick={() => setDrawer(true)}
+      >
+        <Icon name="menu" />
+      </button>
+      {drawer && (
+        <Dialog
+          title="Navigation"
+          className="nav-drawer"
+          onClose={() => setDrawer(false)}
+        >
+          <button
+            className="icon-button drawer-close"
+            aria-label="Close navigation"
+            onClick={() => setDrawer(false)}
+          >
+            <Icon name="close" />
+          </button>
+          {sidebar}
+        </Dialog>
+      )}
+      <Capture />
+      <main id="main-content" className="workspace">
+        {children}
+      </main>
+      {notice && (
+        <div role="status" className="toast">
+          {notice}
+        </div>
+      )}
+    </>
+  );
+}

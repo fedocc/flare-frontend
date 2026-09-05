@@ -1,3 +1,4 @@
 import { MockDataProvider } from "./mock-provider";
-export const dataProvider = new MockDataProvider();
+import type { FlareDataProvider } from "./provider";
+export const dataProvider: FlareDataProvider = new MockDataProvider();
 export * from "./types";

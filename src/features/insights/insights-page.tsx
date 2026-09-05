@@ -2,8 +2,219 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { dataProvider, type Insight } from "@/lib/data";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
-import { ItemType } from "@/components/item-type";
-const relative = (date:string) => Math.round((Date.now()-new Date(date).getTime())/3600000) < 24 ? `${Math.max(1,Math.round((Date.now()-new Date(date).getTime())/3600000))}h ago` : "Earlier";
-export function InsightsPage() { const params=useSearchParams(); const [insights,setInsights]=useState<Insight[]>([]); const [active,setActive]=useState<Insight|null>(null); const [error,setError]=useState<string|null>(null); useEffect(()=>{void dataProvider.listInsights().then((list)=>{setInsights(list);setActive(list.find((i)=>i.id===params.get("insight"))??list[0]??null);}).catch(()=>setError("Insights could not be loaded."));},[params]); if(error)return <ErrorState message={error}/>; if(!active && insights.length===0)return <EmptyState title="No insights yet" detail="Insights will appear when evidence is available."/>; return <div className="min-h-[calc(100vh-3.5rem)] bg-white lg:flex"><section className="w-full border-b hairline lg:w-[380px] lg:shrink-0 lg:border-b-0 lg:border-r"><div className="border-b hairline p-5"><h1 className="font-semibold">Insights</h1></div><div className="divide-y divide-slate-100">{!insights.length?<LoadingState/>:insights.map((insight)=><button key={insight.id} onClick={()=>setActive(insight)} className={`focus-ring block w-full p-5 text-left ${active?.id===insight.id?"bg-[#eff4ff]":"hover:bg-slate-50"}`}><span className="flex justify-between text-xs text-slate-500"><span>{insight.evidence.length} sources</span><time className="mono text-[10px]">{relative(insight.createdAt)}</time></span><b className="mt-2 block leading-snug">{insight.title}</b><p className="mt-2 line-clamp-2 leading-relaxed text-slate-600">{insight.summary}</p></button>)}</div></section>{active&&<main className="flex-1"><div className="mx-auto max-w-3xl space-y-8 px-5 py-8 sm:px-10"><header className="space-y-3 border-b hairline pb-7"><h2 className="text-[28px] font-semibold tracking-[-.035em]">{active.title}</h2><p className="text-[15px] leading-relaxed text-slate-600">{active.explanation}</p></header><section><div className="mb-4 flex items-center justify-between"><h3 className="font-semibold">Evidence</h3><span className="mono text-[11px] text-slate-500">{active.evidence.length} references</span></div><div className="space-y-4">{active.evidence.map((evidence,index)=><article key={`${evidence.itemId}-${index}`} className="space-y-4 rounded border hairline p-5"><div className="flex items-center justify-between gap-3"><b>{evidence.sourceTitle}</b><span className="shrink-0"><ItemType type={evidence.sourceType}/></span></div><blockquote className="border-l-2 border-slate-300 pl-4 text-[15px] italic leading-relaxed">“{evidence.excerpt}”</blockquote><div className="flex justify-end"><Link href={`/vault?item=${evidence.itemId}`} className="focus-ring text-xs font-medium hover:underline">Open source →</Link></div></article>)}</div></section></div></main>}</div>; }
+import { dataProvider, type Insight, type InsightKind } from "@/lib/data";
+import { Icon } from "@/components/icons";
+import { useWorkspace } from "@/components/workspace-context";
+const kinds: InsightKind[] = [
+  "Contradiction",
+  "Repeated Problem",
+  "Hidden Connection",
+  "Unresolved Question",
+];
+const plural: Record<InsightKind, string> = {
+  Contradiction: "Contradictions",
+  "Repeated Problem": "Repeated Problems",
+  "Hidden Connection": "Hidden Connections",
+  "Unresolved Question": "Unresolved Questions",
+};
+export function InsightsPage() {
+  const params = useSearchParams();
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [filter, setFilter] = useState<InsightKind | "All">("All");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const { openCapture } = useWorkspace();
+  useEffect(() => {
+    let live = true;
+    void dataProvider
+      .listInsights()
+      .then((list) => {
+        if (live) {
+          setInsights(list);
+          setSelected(params.get("insight") ?? list[0]?.id ?? null);
+        }
+      })
+      .catch(() => {
+        if (live)
+          setError("Insights could not be loaded. Refresh to try again.");
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [params]);
+  const visible = insights.filter((i) => filter === "All" || i.kind === filter);
+  const active = visible.find((i) => i.id === selected);
+  const selectInsight = (id: string) => {
+    setSelected(id);
+    if (window.innerWidth <= 1050)
+      requestAnimationFrame(() =>
+        document
+          .querySelector(".evidence-panel")
+          ?.scrollIntoView({ block: "start" }),
+      );
+  };
+  return (
+    <div className={`insights-layout ${active ? "with-evidence" : ""}`}>
+      <section className="page insight-feed">
+        <header className="page-heading">
+          <p className="eyebrow">
+            <span className="dot" />
+            RECENT DISCOVERIES · {insights.length} INSIGHTS DETECTED
+          </p>
+          <h1>Insights</h1>
+          <p>
+            Important patterns, contradictions, and recurring questions quietly
+            surfaced across team channels, PRs, and documents.
+          </p>
+        </header>
+        <div className="filters">
+          <button
+            className={`filter ${filter === "All" ? "selected" : ""}`}
+            onClick={() => setFilter("All")}
+          >
+            All <span>{insights.length}</span>
+          </button>
+          {kinds.map((kind) => (
+            <button
+              key={kind}
+              className={`filter ${filter === kind ? "selected" : ""}`}
+              onClick={() => {
+                setFilter(kind);
+                setSelected(insights.find((i) => i.kind === kind)?.id ?? null);
+              }}
+            >
+              {plural[kind]}{" "}
+              <span>{insights.filter((i) => i.kind === kind).length}</span>
+            </button>
+          ))}
+        </div>
+        {loading ? (
+          <p className="state" role="status">
+            Loading discoveries…
+          </p>
+        ) : error ? (
+          <p className="state error-text" role="alert">
+            {error}
+          </p>
+        ) : !visible.length ? (
+          <div className="state">
+            <h2>No discoveries in this category</h2>
+            <p>Choose another filter to explore the available evidence.</p>
+          </div>
+        ) : (
+          <div className="insight-stack">
+            {visible.map((insight) => (
+              <article
+                key={insight.id}
+                className={`card insight-card ${active?.id === insight.id ? "active" : ""}`}
+              >
+                <div className="card-meta">
+                  <span
+                    className={`badge kind-${kinds.indexOf(insight.kind ?? "Hidden Connection")}`}
+                  >
+                    <span className="dot" />
+                    {insight.kind}
+                  </span>
+                  <span className="muted">
+                    {new Date(insight.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                  {active?.id === insight.id && (
+                    <span className="selected-label">
+                      Selected <Icon name="check" />
+                    </span>
+                  )}
+                </div>
+                <h2>
+                  <button
+                    className="title-button"
+                    onClick={() => selectInsight(insight.id)}
+                  >
+                    {insight.title}
+                  </button>
+                </h2>
+                <p className="description">{insight.summary}</p>
+                <div className="callout">
+                  <Icon name="info" />
+                  <p>
+                    <strong>Why it matters</strong>
+                    <span>{insight.explanation}</span>
+                  </p>
+                </div>
+                <footer className="card-footer">
+                  <span>
+                    <Icon name="sources" />
+                    {insight.evidence.length} sources
+                  </span>
+                  <button
+                    className="text-button"
+                    onClick={() => selectInsight(insight.id)}
+                  >
+                    View evidence <Icon name="arrow" />
+                  </button>
+                </footer>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+      {active && (
+        <aside className="evidence-panel">
+          <header>
+            <h2>
+              <Icon name="note" />
+              Insight Evidence
+            </h2>
+            <button
+              className="icon-button"
+              aria-label="Close evidence"
+              onClick={() => setSelected(null)}
+            >
+              <Icon name="close" />
+            </button>
+          </header>
+          <div className="evidence-body">
+            <p className="eyebrow accent">{active.kind}</p>
+            <h2>{active.detailTitle ?? active.title}</h2>
+            <div className="card attention">
+              <h3>Why this requires attention</h3>
+              <p>{active.explanation}</p>
+            </div>
+            <h3 className="eyebrow muted">VERIFIABLE QUOTES</h3>
+            {active.evidence.map((e, i) => (
+              <article className="quote-card" key={`${e.itemId}-${i}`}>
+                <div className="quote-meta">
+                  <Link href={`/vault?item=${e.itemId}`}>{e.sourceTitle}</Link>
+                  <span className="muted">{e.sourceType}</span>
+                </div>
+                <blockquote>“{e.excerpt}”</blockquote>
+                <Link className="text-button" href={`/vault?item=${e.itemId}`}>
+                  Open source <Icon name="arrow" />
+                </Link>
+              </article>
+            ))}
+          </div>
+          <footer className="evidence-actions">
+            <button
+              className="button primary"
+              onClick={() =>
+                openCapture(
+                  `Resolution note: ${active.detailTitle ?? active.title}\n\n${active.explanation}\n\nEvidence:\n${active.evidence.map((e) => `- ${e.sourceTitle}: ${e.excerpt}`).join("\n")}\n\nDecision: `,
+                )
+              }
+            >
+              <Icon name="note" />
+              Draft Resolution Note
+            </button>
+          </footer>
+        </aside>
+      )}
+    </div>
+  );
+}
