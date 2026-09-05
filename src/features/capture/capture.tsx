@@ -10,6 +10,7 @@ import { useVoiceCapture } from "./use-voice-capture";
 
 const ORB_POSITION_KEY = "flare-orb-position-v1";
 const ORB_EDGE_MARGIN = 30;
+const PANEL_EDGE_MARGIN = 16;
 type OrbPosition = { x: number; y: number };
 type PointerStart = {
   pointerId: number;
@@ -45,6 +46,29 @@ function clampOrbPosition(position: OrbPosition): OrbPosition {
       Math.max(ORB_EDGE_MARGIN, position.y),
       window.innerHeight - ORB_EDGE_MARGIN,
     ),
+  };
+}
+
+function clampPanelAxis(value: number, size: number, viewport: number) {
+  if (size + PANEL_EDGE_MARGIN * 2 >= viewport) return viewport / 2;
+  return Math.min(
+    Math.max(value, size / 2 + PANEL_EDGE_MARGIN),
+    viewport - size / 2 - PANEL_EDGE_MARGIN,
+  );
+}
+
+function panelPositionFor(
+  position: OrbPosition,
+  stage: "capture" | "voice",
+): OrbPosition {
+  const width = Math.min(
+    stage === "voice" ? 360 : 500,
+    window.innerWidth - PANEL_EDGE_MARGIN * 2,
+  );
+  const height = stage === "voice" ? 52 : 360;
+  return {
+    x: clampPanelAxis(position.x, width, window.innerWidth),
+    y: clampPanelAxis(position.y, height, window.innerHeight),
   };
 }
 
@@ -248,6 +272,10 @@ export function Capture() {
       : hovered
         ? "hover"
         : "idle";
+  const displayPosition =
+    orbPosition && (stage === "capture" || stage === "voice")
+      ? panelPositionFor(orbPosition, stage)
+      : orbPosition;
 
   return (
     <>
@@ -256,10 +284,10 @@ export function Capture() {
         className={`flare-capture flare-capture--${stage} ${dragging ? "is-dragging" : ""} ${orbDragging ? "is-orb-dragging" : ""}`}
         data-capture-state={stage}
         style={
-          orbPosition
+          displayPosition
             ? {
-                left: orbPosition.x,
-                top: orbPosition.y,
+                left: displayPosition.x,
+                top: displayPosition.y,
                 transform: "translate(-50%, -50%)",
               }
             : undefined
